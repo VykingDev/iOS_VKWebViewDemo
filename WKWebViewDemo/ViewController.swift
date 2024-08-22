@@ -177,7 +177,7 @@ extension ViewController {
 
   func vykingConfigure(config: String, key: String, completionHandler: (@MainActor @Sendable (Any?, (any Error)?) -> Void)? = nil) {
     vykingWebView.evaluateJavaScript("""
-        document.querySelector('vyking-apparel')?.setAttribute('key', '\(key)');
+        document.querySelector('vyking-apparel')?.setAttribute('config-key', '\(key)');
         document.querySelector('vyking-apparel')?.setAttribute('config', '\(config)');
 
         document.querySelector('model-viewer')?.setAttribute('vto', true);
