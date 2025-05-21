@@ -6,7 +6,7 @@
 //
 
 import UIKit
-import WebKit
+@preconcurrency import WebKit
 
 import Foundation
 import UIKit
@@ -18,10 +18,12 @@ class ViewController: UIViewController {
   private var vykingWebView: WKWebView!
 
   private let key = "io.vyking"
-  private let config = "../assets/config/modeld.foot.bin"
+  private let config = "../assets/config/modeld.foot.config"
 
   private let vykingApparelUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/with-service-worker/examples/in-app-vyking-apparel-camera.html")!
+//  private let vykingApparelUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/vanilla/examples/in-app-vyking-apparel-camera.html")!
   private let modelViewerUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/with-service-worker/examples/in-app-model-viewer.html")!
+//  private let modelViewerUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/vanilla/examples/in-app-model-viewer.html")!
 
   private let vykWebViewLogHandler = "logHandler"
   private let vykWebViewInfoHandler = "infoHandler"
@@ -36,11 +38,9 @@ class ViewController: UIViewController {
 
   private var shoeSelector: Int = 0
   private let shoeList = [
-    ["Yeezy Boost 700 carbon_blue", "https://sneaker-window.vyking.io/vyking-assets/customer/vyking-io/yeezy_boost_700_carbon_blue/offsets.json"],
-    ["Adidas GY1121", "https://sneaker-window.vyking.io/vyking-assets/customer/vyking-io/adidas_GY1121/offsets.json"],
-    ["Air Jordon 1 Turbo Green", "https://sneaker-window.vyking.io/vyking-assets/customer/vyking-io/air_jordan_1_turbo_green/offsets.json"],
-    ["Jordon Off-white", "https://sneaker-window.vyking.io/vyking-assets/customer/vyking-io/jordan_off_white_chicago/offsets.json"],
-    ["Monte Runner", "https://sneaker-window.vyking.io/vyking-assets/customer/vyking-io/H209A4M00080M2056P04_Monte_Runner_Trainers/offsets.json"]
+    ["New Balance", "https://sneaker-window.vyking.io/vyking-assets/customer/vyking-io/NB01/offsets.json"],
+    ["Nike", "https://sneaker-window.vyking.io/vyking-assets/customer/vyking-io/NIKE06/offsets.json"],
+    ["Adidas", "https://sneaker-window.vyking.io/vyking-assets/customer/vyking-io/IE2165/offsets.json"]
   ]
 
   @IBOutlet weak var viewModelToggleButtonReference: UIButton!
@@ -179,11 +179,6 @@ extension ViewController {
     vykingWebView.evaluateJavaScript("""
         document.querySelector('vyking-apparel')?.setAttribute('config-key', '\(key)');
         document.querySelector('vyking-apparel')?.setAttribute('config', '\(config)');
-
-        document.querySelector('model-viewer')?.setAttribute('vto', true);
-        document.querySelector('model-viewer')?.setAttribute('vto-share', true);
-        document.querySelector('model-viewer')?.setAttribute('vto-key', '\(key)');
-        document.querySelector('model-viewer')?.setAttribute('vto-config', '\(config)');
       """, completionHandler: completionHandler)
   }
 
