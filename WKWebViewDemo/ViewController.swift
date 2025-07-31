@@ -16,23 +16,30 @@ import Photos
 class ViewController: UIViewController {
   let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
   private var vykingWebView: WKWebView!
+  private var preWarmTensorflowModelWebView: WKWebView!
 
   private let key = "io.vyking"
   private let config = "https://sneaker-window.vyking.io/vyking-examples/vanilla/assets/config/modeld.foot.config"
+  private let vykingApparelNeedsPrewarming = false
   private var isPreWarmOfTensorflowModelComplete: Bool = false
 
 //  private let vykingApparelUrl = URL(string:"https://192.168.0.20:1236/vanilla/examples/in-app-vyking-apparel-camera.html")!
+//  private let preWarmTensorflowModelUrl = URL(string:"https://192.168.0.20:1236/vanilla/examples/in-app-preWarmTensorflowModel.html")!
 
-  private let vykingApparelUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/with-service-worker/examples/in-app-vyking-apparel-camera.html")!
-//  private let vykingApparelUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/vanilla/examples/in-app-vyking-apparel-camera.html")!
+//  private let vykingApparelUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/with-service-worker/examples/in-app-vyking-apparel-camera.html")!
+  private let vykingApparelUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/vanilla/examples/in-app-vyking-apparel-camera.html")!
 
-  private let modelViewerUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/with-service-worker/examples/in-app-model-viewer.html")!
-//  private let modelViewerUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/vanilla/examples/in-app-model-viewer.html")!
+//  private let modelViewerUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/with-service-worker/examples/in-app-model-viewer.html")!
+  private let modelViewerUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/vanilla/examples/in-app-model-viewer.html")!
 
-  private let vykWebViewLogHandler = "logHandler"
-  private let vykWebViewInfoHandler = "infoHandler"
-  private let vykWebViewErrorHandler = "errorHandler"
-  private let vykWebViewOnPreWarmTensorflowModelCompleteHandler = "vykWebViewOnPreWarmTensorflowModelCompleteHandler"
+//  private let preWarmTensorflowModelUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/with-service-worker/examples/in-app-preWarmTensorflowModel.html")!
+  private let preWarmTensorflowModelUrl = URL(string:"https://sneaker-window.vyking.io/vyking-examples/vanilla/examples/in-app-preWarmTensorflowMode.html")!
+
+
+  private let vykingWebViewLogHandler = "logHandler"
+  private let vykingWebViewInfoHandler = "infoHandler"
+  private let vykingWebViewErrorHandler = "errorHandler"
+  private let vykingWebViewOnPreWarmTensorflowModelCompleteHandler = "vykWebViewOnPreWarmTensorflowModelCompleteHandler"
 
   enum ViewMode {
     case vykingApparel
@@ -80,11 +87,17 @@ class ViewController: UIViewController {
 
     super.viewDidLoad()
 
-    addVykingWebView()
+    if (vykingApparelNeedsPrewarming) {
+      // Keep this button hidden until the pre-warming of the Tensorflow model has completed.
+      // This will occur during the presentation of the model-viewer WKWebView.
+      viewModelToggleButtonReference.isHidden = true
 
-    // Keep this button hidden until the pre-warming of the Tensorflow model has completed.
-    // This will occur during the presentation of the model-viewer WKWebView.
-    viewModelToggleButtonReference.isHidden = true
+      // Create a WebView for running the Tensorflow Model pre-warm script in.
+      addVykingWebView(isForPreWarmOfTensorflowModel: true)
+    }
+
+    // Create the WebView for running the model-viewer in.
+    addVykingWebView()
 
     view.bringSubviewToFront(viewModelToggleButtonReference)
     view.bringSubviewToFront(NextShoeButtonReference)
@@ -92,7 +105,9 @@ class ViewController: UIViewController {
 }
 
 extension ViewController {
-  func addVykingWebView() {
+  func addVykingWebView(isForPreWarmOfTensorflowModel: Bool = false) {
+    NSLog("WKWebViewDemo.addVykingWebView isForPreWarmOfTensorflowModel: \(isForPreWarmOfTensorflowModel)")
+
     let webConfiguration = WKWebViewConfiguration()
     webConfiguration.allowsInlineMediaPlayback = true
     webConfiguration.mediaTypesRequiringUserActionForPlayback = []
@@ -113,7 +128,7 @@ extension ViewController {
         """
     let logScript = WKUserScript(source: logSource, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
     webConfiguration.userContentController.addUserScript(logScript)
-    webConfiguration.userContentController.add(self, name: vykWebViewLogHandler)
+    webConfiguration.userContentController.add(self, name: vykingWebViewLogHandler)
 
     let infoSource = """
         let originalInfo = console.info;
@@ -125,7 +140,7 @@ extension ViewController {
         """
     let infoScript = WKUserScript(source: infoSource, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
     webConfiguration.userContentController.addUserScript(infoScript)
-    webConfiguration.userContentController.add(self, name: vykWebViewInfoHandler)
+    webConfiguration.userContentController.add(self, name: vykingWebViewInfoHandler)
 
     let errorSource = """
         let originalerror = console.error;
@@ -137,19 +152,21 @@ extension ViewController {
         """
     let errorScript = WKUserScript(source: errorSource, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
     webConfiguration.userContentController.addUserScript(errorScript)
-    webConfiguration.userContentController.add(self, name: vykWebViewErrorHandler)
+    webConfiguration.userContentController.add(self, name: vykingWebViewErrorHandler)
 
-    // Add a function that can be called when pre-warming the Tensorfow model completes
-    let onPreWarmTensorflowModelCompleteSource = """
+    if (isForPreWarmOfTensorflowModel) {
+      // Add a function that can be called when pre-warming the Tensorfow model completes
+      let onPreWarmTensorflowModelCompleteSource = """
         function onPreWarmTensorflowModelComplete(msg) {
           window.webkit.messageHandlers.vykWebViewOnPreWarmTensorflowModelCompleteHandler.postMessage(msg);
         }
         """
-    let onPreWarmTensorflowModelCompleteScript = WKUserScript(source: onPreWarmTensorflowModelCompleteSource, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
-    webConfiguration.userContentController.addUserScript(onPreWarmTensorflowModelCompleteScript)
-    webConfiguration.userContentController.add(self, name: vykWebViewOnPreWarmTensorflowModelCompleteHandler)
+      let onPreWarmTensorflowModelCompleteScript = WKUserScript(source: onPreWarmTensorflowModelCompleteSource, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
+      webConfiguration.userContentController.addUserScript(onPreWarmTensorflowModelCompleteScript)
+      webConfiguration.userContentController.add(self, name: vykingWebViewOnPreWarmTensorflowModelCompleteHandler)
+    }
 
-    vykingWebView = WKWebView(frame: CGRect(
+    let webView = WKWebView(frame: CGRect(
       x: 0,
       y: 0,
       width: UIScreen.main.bounds.width,
@@ -157,35 +174,52 @@ extension ViewController {
       configuration: webConfiguration
     )
 
-    vykingWebView.navigationDelegate = self
-    vykingWebView.uiDelegate         = self
-    vykingWebView.autoresizingMask   = [.flexibleWidth, .flexibleHeight]
-    vykingWebView.allowsBackForwardNavigationGestures = false
-    vykingWebView.becomeFirstResponder()
+    webView.navigationDelegate = self
+    webView.uiDelegate         = self
+    webView.autoresizingMask   = [.flexibleWidth, .flexibleHeight]
+    webView.allowsBackForwardNavigationGestures = false
+
+    if (isForPreWarmOfTensorflowModel) {
+      webView.isHidden = true
+      preWarmTensorflowModelWebView = webView
+
+      // We need to load an html page suitable for running our pre-warm javascript, so we use a url that points to a
+      // minimal html page (note that about:blank is not good enough as it only seems to do about half of the warmup).
+      let urlRq = URLRequest(
+        url: preWarmTensorflowModelUrl,
+        cachePolicy: .reloadRevalidatingCacheData,
+        timeoutInterval: 60.0
+      )
+      webView.load( urlRq )
+    } else {
+      webView.becomeFirstResponder()
+
+      vykingWebView = webView
+
+      let url = switch viewMode {
+      case .vykingApparel: vykingApparelUrl
+      case .modelViewer: modelViewerUrl
+      }
+
+      let urlRq = URLRequest(
+        url: url,
+        cachePolicy: .reloadRevalidatingCacheData,
+        timeoutInterval: 60.0
+      )
+      webView.load( urlRq )
+
+      let label = switch viewMode {
+      case .vykingApparel: "View Model"
+      case .modelViewer: "Try-on"
+      }
+      viewModelToggleButtonReference.setTitle(label, for: .normal)
+    }
 
     if #available(macOS 13.3, iOS 16.4, tvOS 16.4, *) {
-      vykingWebView.isInspectable = true
+      webView.isInspectable = true
     }
 
-    let url = switch viewMode {
-    case .vykingApparel: vykingApparelUrl
-    case .modelViewer: modelViewerUrl
-    }
-
-    let urlRq = URLRequest(
-      url: url,
-      cachePolicy: .reloadRevalidatingCacheData,
-      timeoutInterval: 60.0
-    )
-    vykingWebView.load( urlRq )
-
-    let label = switch viewMode {
-    case .vykingApparel: "View Model"
-    case .modelViewer: "Try-on"
-    }
-    viewModelToggleButtonReference.setTitle(label, for: .normal)
-
-    view.addSubview(vykingWebView)
+    view.addSubview(webView)
   }
 
   func removeVykingWebView() {
@@ -193,18 +227,15 @@ extension ViewController {
     vykingWebView = nil
   }
 
-  func vykingConfigure(config: String, key: String, completionHandler: (@MainActor @Sendable (Any?, (any Error)?) -> Void)? = nil) {
-    vykingWebView.evaluateJavaScript("""
-        document.querySelector('vyking-apparel')?.setAttribute('config-key', '\(key)');
-        document.querySelector('vyking-apparel')?.setAttribute('config', '\(config)');
-      """, completionHandler: completionHandler)
-
-    // It can take a long time to compile the Tensorflow model's shaders, therefore we provide a javascript that can be run to do this before
-    // the VTO is required. This typically only needs to be done the first time the app is launched after installation and after a device restart,
+  
+  func vykingConfigure(webView: WKWebView, config: String, key: String, completionHandler: (@MainActor @Sendable (Any?, (any Error)?) -> Void)? = nil) {
+    // If vyking-apparel is configured to use Tensorflow's WebGL, it can take a long time to compile the Tensorflow model's shaders the first time, therefore
+    // we provide a javascript that can be run to do this before the VTO is required.
+    // This typically only needs to be done the first time the app is launched after installation and after a device restart,
     // however for simplicity this demo app does this on each app start.
-    //It is assumed this completion handler has been called by a WKWebView displayed before the VTO WKWebView is needed.
-    if (!isPreWarmOfTensorflowModelComplete) {
-      vykingWebView.evaluateJavaScript("""
+    // It is assumed this completion handler has been called by a WKWebView before the VTO WKWebView is needed.
+    if (webView === preWarmTensorflowModelWebView && !isPreWarmOfTensorflowModelComplete) {
+      webView.evaluateJavaScript("""
         const preWarmTensorflowModel = (configUrl, configKey) => {
           import('https://sneaker-window.vyking.io/vyking-apparel/1/preWarmTensorflowModel.js')
             .then(module => {
@@ -226,6 +257,11 @@ extension ViewController {
           NSLog("WKWebViewDemo.webView.didFinish navigation completion object: \(String(describing: object)), error: \(String(describing: error))")
         self.isPreWarmOfTensorflowModelComplete = true
       })
+    } else {
+      webView.evaluateJavaScript("""
+        document.querySelector('vyking-apparel')?.setAttribute('config-key', '\(key)');
+        document.querySelector('vyking-apparel')?.setAttribute('config', '\(config)');
+      """, completionHandler: completionHandler)
     }
   }
 
@@ -338,7 +374,7 @@ extension ViewController: WKNavigationDelegate {
 
   func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
     NSLog("WKWebViewDemo.webView.didFinish navigation view.frame \(view.frame)")
-    vykingConfigure(config: config, key: key) { (result, error) in
+    vykingConfigure(webView: webView, config: config, key: key) { (result, error) in
       self.vykingReplaceApparel(url: self.shoeList[ self.shoeSelector ][1], name: self.shoeList[ self.shoeSelector ][0])
     }
   }
@@ -350,16 +386,18 @@ extension ViewController: WKScriptMessageHandler {
     decoder.keyDecodingStrategy = .convertFromSnakeCase
 
     switch message.name {
-    case vykWebViewLogHandler:
+    case vykingWebViewLogHandler:
       print("WEB-LOG: \(message.body)")
-    case vykWebViewInfoHandler:
+    case vykingWebViewInfoHandler:
       print("WEB-INFO: \(message.body)")
-    case vykWebViewErrorHandler:
+    case vykingWebViewErrorHandler:
       print("WEB-ERROR: \(message.body)")
-    case vykWebViewOnPreWarmTensorflowModelCompleteHandler:
-      print("WEB-nPreWarmTensorflowModelCompleteHandler: \(message.body)")
+    case vykingWebViewOnPreWarmTensorflowModelCompleteHandler:
+      print("WEB-onPreWarmTensorflowModelCompleteHandler: \(message.body)")
       // Now the pre-warm is complete we can enable the VTO button
       viewModelToggleButtonReference.isHidden = false
+      preWarmTensorflowModelWebView.removeFromSuperview()
+      preWarmTensorflowModelWebView = nil
     default:
       break
     }
